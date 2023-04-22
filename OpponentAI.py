@@ -195,7 +195,7 @@ class OpponentAI:
 
         # Minimax each child
         for child in root.children:
-            child.value = self.minimax(3, True, board_state)
+            child.value = self.minimax(5, True, -inf, inf, board_state)
 
         # Get the best option
         best_option = root.children[0]
@@ -205,8 +205,8 @@ class OpponentAI:
 
         return best_option.position
 
-    def minimax(self, depth: int, is_maximizer: bool, board_state: BoardState):
-        if depth == 0 or board_state.game_over:
+    def minimax(self, depth: int, is_maximizer: bool, alpha: float, beta: float, board_state: BoardState) -> float:
+        if depth < 1 or board_state.game_over:
             if is_maximizer:
                 return heuristic(board_state, 'W', 'B')
             else:
@@ -215,12 +215,18 @@ class OpponentAI:
         if is_maximizer:
             max_val = -inf
             for move in board_state.available_moves:
-                val = self.minimax(depth - 1, False, board_state)
+                val = self.minimax(depth - 1, False, alpha, beta, board_state)
                 max_val = max(max_val, val)
+                alpha = max(alpha, val)
+                if beta <= alpha:
+                    break
             return max_val
         else:
             min_val = inf
             for move in board_state.available_moves:
-                val = self.minimax(depth - 1, True, board_state)
+                val = self.minimax(depth - 1, True, alpha, beta, board_state)
                 min_val = min(min_val, val)
+                beta = min(beta, val)
+                if beta <= alpha:
+                    break
             return min_val
