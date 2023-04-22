@@ -1,3 +1,5 @@
+import copy
+
 from Position import Position
 from BoardState import BoardState
 from math import inf
@@ -12,19 +14,21 @@ class Node:
         self.children.append(node)
 
 
-# Piece difference, frontier disks and disk squares
-def piece_difference(board: list[list], player_color: str, opponent_color: str) -> (float, float):
-    weights = [[20, -3, 11, 8, 8, 11, -3, 20],
-               [-3, -7, -4, 1, 1, -4, -7, -3],
-               [11, -4, 2, 2, 2, 2, -4, 11],
-               [8, 1, 2, -3, -3, 2, 1, 8],
-               [8, 1, 2, -3, -3, 2, 1, 8],
-               [11, -4, 2, 2, 2, 2, -4, 11],
-               [-3, -7, -4, 1, 1, -4, -7, -3],
-               [20, -3, 11, 8, 8, 11, -3, 20]
+weights = [20, -3, 11, 8, 8, 11, -3, 20,
+               -3, -7, -4, 1, 1, -4, -7, -3,
+               11, -4, 2, 2, 2, 2, -4, 11,
+               8, 1, 2, -3, -3, 2, 1, 8,
+               8, 1, 2, -3, -3, 2, 1, 8,
+               11, -4, 2, 2, 2, 2, -4, 11,
+               -3, -7, -4, 1, 1, -4, -7, -3,
+               20, -3, 11, 8, 8, 11, -3, 20
                ]
-    x_weights = [-1, -1, 0, 1, 1, 1, 0, -1]
-    y_weights = [0, 1, 1, 1, 0, -1, -1, -1]
+x_weights = [-1, -1, 0, 1, 1, 1, 0, -1]
+y_weights = [0, 1, 1, 1, 0, -1, -1, -1]
+
+# Piece difference, frontier disks and disk squares
+def piece_difference(board: list[str | None], player_color: str, opponent_color: str) -> (float, float):
+
     player_tiles = 0
     opponent_tiles = 0
     player_front_tiles = 0
@@ -32,19 +36,19 @@ def piece_difference(board: list[list], player_color: str, opponent_color: str) 
     result = 0
     for i in range(8):
         for j in range(8):
-            if board[i][j] == player_color:
-                result += weights[i][j]
+            if board[i * 8 + j] == player_color:
+                result += weights[i * 8 + j]
                 player_tiles += 1
-            elif board[i][j] == opponent_color:
-                result -= weights[i][j]
+            elif board[i * 8 + j] == opponent_color:
+                result -= weights[i * 8 + j]
                 opponent_tiles += 1
 
-            if board[i][j] is not None:
+            if board[i * 8 + j] is not None:
                 for k in range(8):
                     x = i + x_weights[k]
                     y = j + y_weights[k]
-                    if 0 <= x < 8 and 0 <= y < 8 and board[i][j] is None:
-                        if board[i][j] == player_color:
+                    if 0 <= x < 8 and 0 <= y < 8 and board[i * 8 + j] is None:
+                        if board[i * 8 + j] == player_color:
                             player_front_tiles += 1
                         else:
                             opponent_front_tiles += 1
@@ -66,95 +70,95 @@ def piece_difference(board: list[list], player_color: str, opponent_color: str) 
     return p, f
 
 
-def corner_occupancy(board: list[list], player_color: str, opponent_color: str) -> float:
+def corner_occupancy(board: list[str | None], player_color: str, opponent_color: str) -> float:
     player_tiles = opponent_tiles = 0
-    if board[0][0] == player_color:
+    if board[0] == player_color:
         player_tiles += 1
-    elif board[0][0] == opponent_color:
+    elif board[0] == opponent_color:
         opponent_tiles += 1
 
-    if board[0][7] == player_color:
+    if board[7] == player_color:
         player_tiles += 1
-    elif board[0][7] == opponent_color:
+    elif board[7] == opponent_color:
         opponent_tiles += 1
 
-    if board[7][0] == player_color:
+    if board[21] == player_color:
         player_tiles += 1
-    elif board[7][0] == opponent_color:
+    elif board[21] == opponent_color:
         opponent_tiles += 1
 
-    if board[7][7] == player_color:
+    if board[28] == player_color:
         player_tiles += 1
-    elif board[7][7] == opponent_color:
+    elif board[28] == opponent_color:
         opponent_tiles += 1
 
     return 25 * (player_tiles - opponent_tiles)
 
 
-def corner_closeness(board: list[list], player_color: str, opponent_color: str) -> float:
+def corner_closeness(board: list[str | None], player_color: str, opponent_color: str) -> float:
     player_tiles = opponent_tiles = 0
-    if board[0][0] is None:
-        if board[0][1] == player_color:
+    if board[0] is None:
+        if board[1] == player_color:
             player_tiles += 1
-        elif board[0][1] == opponent_color:
+        elif board[1] == opponent_color:
             opponent_tiles += 1
 
-        if board[1][1] == player_color:
+        if board[4] == player_color:
             player_tiles += 1
-        elif board[1][1] == opponent_color:
+        elif board[4] == opponent_color:
             opponent_tiles += 1
 
-        if board[1][0] == player_color:
+        if board[3] == player_color:
             player_tiles += 1
-        elif board[1][0] == opponent_color:
+        elif board[3] == opponent_color:
             opponent_tiles += 1
 
-    if board[0][7] == '-':
-        if board[0][6] == player_color:
+    if board[7] == '-':
+        if board[6] == player_color:
             player_tiles += 1
-        elif board[0][6] == opponent_color:
+        elif board[6] == opponent_color:
             opponent_tiles += 1
 
-        if board[1][6] == player_color:
+        if board[9] == player_color:
             player_tiles += 1
-        elif board[1][6] == opponent_color:
+        elif board[9] == opponent_color:
             opponent_tiles += 1
 
-        if board[1][7] == player_color:
+        if board[10] == player_color:
             player_tiles += 1
-        elif board[1][7] == opponent_color:
+        elif board[10] == opponent_color:
             opponent_tiles += 1
 
-    if board[7][0] == '-':
-        if board[7][1] == player_color:
+    if board[7] == '-':
+        if board[22] == player_color:
             player_tiles += 1
-        elif board[7][1] == opponent_color:
+        elif board[22] == opponent_color:
             opponent_tiles += 1
 
-        if board[6][1] == player_color:
+        if board[19] == player_color:
             player_tiles += 1
-        elif board[6][1] == opponent_color:
+        elif board[19] == opponent_color:
             opponent_tiles += 1
 
-        if board[6][0] == player_color:
+        if board[18] == player_color:
             player_tiles += 1
-        elif board[6][0] == opponent_color:
+        elif board[18] == opponent_color:
             opponent_tiles += 1
 
-    if board[7][7] == '-':
-        if board[6][7] == player_color:
+    if board[28] == '-':
+        if board[25] == player_color:
             player_tiles += 1
-        elif board[6][7] == opponent_color:
+        elif board[25] == opponent_color:
             opponent_tiles += 1
 
-        if board[6][6] == player_color:
+        if board[24] == player_color:
             player_tiles += 1
-        elif board[6][6] == opponent_color:
+        elif board[24] == opponent_color:
             opponent_tiles += 1
 
-        if board[7][6] == player_color:
+        if board[27] == player_color:
             player_tiles += 1
-        elif board[7][6] == opponent_color:
+        elif board[27] == opponent_color:
             opponent_tiles += 1
 
     return -12.5 * (player_tiles - opponent_tiles)
@@ -195,7 +199,7 @@ class OpponentAI:
 
         # Minimax each child
         for child in root.children:
-            child.value = self.minimax(5, True, -inf, inf, board_state)
+            child.value = self.minimax(3, True, -inf, inf, board_state, child.position)
 
         # Get the best option
         best_option = root.children[0]
@@ -205,7 +209,11 @@ class OpponentAI:
 
         return best_option.position
 
-    def minimax(self, depth: int, is_maximizer: bool, alpha: float, beta: float, board_state: BoardState) -> float:
+    def minimax(self, depth: int, is_maximizer: bool, alpha: float, beta: float, state: BoardState, child_position: Position) -> float:
+        board_state = copy.deepcopy(state)
+        board_state.board = copy.deepcopy(board_state.board)
+        board_state.make_move(child_position)
+
         if depth < 1 or board_state.game_over:
             if is_maximizer:
                 return heuristic(board_state, 'W', 'B')
@@ -215,7 +223,7 @@ class OpponentAI:
         if is_maximizer:
             max_val = -inf
             for move in board_state.available_moves:
-                val = self.minimax(depth - 1, False, alpha, beta, board_state)
+                val = self.minimax(depth - 1, False, alpha, beta, board_state, move)
                 max_val = max(max_val, val)
                 alpha = max(alpha, val)
                 if beta <= alpha:
@@ -224,7 +232,7 @@ class OpponentAI:
         else:
             min_val = inf
             for move in board_state.available_moves:
-                val = self.minimax(depth - 1, True, alpha, beta, board_state)
+                val = self.minimax(depth - 1, True, alpha, beta, board_state, move)
                 min_val = min(min_val, val)
                 beta = min(beta, val)
                 if beta <= alpha:
