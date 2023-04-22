@@ -34,3 +34,11 @@ def play():
         pos = move.split(' ')
         position = Position(int(pos[0]) - 1, ord(pos[1]) - ord('A'))
         board_state.make_move(position)
+
+        if len(board_state.available_moves) < 1:
+            if board_state.game_over:
+                print('Game over!')
+                print(f'Winner: {board_state.winner}\nNumber of discs:\nWhite: {board_state.white_discs}\nBlack: {board_state.black_discs}')
+                break
+
+    print('Thank you for playing!')

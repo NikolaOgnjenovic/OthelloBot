@@ -83,7 +83,7 @@ class BoardState:
             return
 
         self.swap_player()
-        if len(self.available_moves) > 0:
+        if len(self.available_moves) < 1:
             self.current_player = None
             self.game_over = True
             self.winner = self.get_winner()
