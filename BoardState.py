@@ -10,7 +10,7 @@ def get_opponent(player_color: str):
     return None
 
 
-class BoardState:
+class BoardState(object):
     ROWS = 8
     COLUMNS = 8
 

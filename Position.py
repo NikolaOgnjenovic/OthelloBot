@@ -12,4 +12,4 @@ class Position(object):
         return 8 * self.row + self.column
 
     def __str__(self):
-        return str(self.row + 1) + ' ' + chr(self.column + ord('A'))
+        return chr(self.column + ord('A')) + ' ' + str(self.row + 1)
