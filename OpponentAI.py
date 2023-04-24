@@ -188,8 +188,14 @@ def heuristic(board_state: BoardState, player_color: str, opponent_color: str):
     return score
 
 
+# TODO: think of a better hashing algorithm
+def hash_board(board: list[str | None]):
+    return str(board)
+
 class OpponentAI:
     board_state: BoardState
+
+    state_hash: dict = {} # Hash map of already calculated state branch values (transposition table)
 
     def get_next_move(self, board_state: BoardState) -> Position:
         root = Node(None)
@@ -199,7 +205,7 @@ class OpponentAI:
 
         # Minimax each child
         for child in root.children:
-            child.value = self.minimax(3, True, -inf, inf, board_state, child.position)
+            child.value = self.minimax(10, True, -inf, inf, board_state, child.position)
 
         # Get the best option
         best_option = root.children[0]
@@ -223,7 +229,14 @@ class OpponentAI:
         if is_maximizer:
             max_val = -inf
             for move in board_state.available_moves:
-                val = self.minimax(depth - 1, False, alpha, beta, board_state, move)
+                if self.state_hash.__contains__(board_state.board.__hash__):
+                    val = self.state_hash.get(board_state.board.__hash__)
+                    print('ALREADY CALCULATED')
+                else:
+                    val = self.minimax(depth - 1, False, alpha, beta, board_state, move)
+                    self.state_hash.update({board_state.board.__hash__: val})
+                #val = self.minimax(depth - 1, False, alpha, beta, board_state, move)
+
                 max_val = max(max_val, val)
                 alpha = max(alpha, val)
                 if beta <= alpha:
@@ -232,7 +245,14 @@ class OpponentAI:
         else:
             min_val = inf
             for move in board_state.available_moves:
-                val = self.minimax(depth - 1, True, alpha, beta, board_state, move)
+                if self.state_hash.__contains__(board_state.board.__hash__):
+                    val = self.state_hash.get(board_state.board.__hash__)
+                    print('ALREADY CALCULATED')
+                else:
+                    val = self.minimax(depth - 1, True, alpha, beta, board_state, move)
+                    self.state_hash.update({board_state.board.__hash__: val})
+                #val = self.minimax(depth - 1, True, alpha, beta, board_state, move)
+
                 min_val = min(min_val, val)
                 beta = min(beta, val)
                 if beta <= alpha:

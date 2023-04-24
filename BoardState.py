@@ -59,6 +59,8 @@ class BoardState(object):
             self.board[position.row * 8 + position.column] = get_opponent(self.board[position.row * 8 + position.column])
 
     def update_disc_counts(self, player_color: str, count: int):
+        if count == 0:
+            return
         if player_color == "B":
             self.black_discs += count + 1
             self.white_discs -= count
@@ -127,3 +129,6 @@ class BoardState(object):
                     moves.update({position: outflanked})
 
         return moves
+
+    def __hash__(self):
+        return (self.white_discs | self.black_discs).__hash__()
