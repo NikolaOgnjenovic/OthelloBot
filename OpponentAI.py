@@ -33,14 +33,14 @@ def piece_difference(board: list[str | None], player_color: str, opponent_color:
     opponent_tiles = 0
     player_front_tiles = 0
     opponent_front_tiles = 0
-    result = 0
+    d = 0
     for i in range(8):
         for j in range(8):
             if board[i * 8 + j] == player_color:
-                result += weights[i * 8 + j]
+                d += weights[i * 8 + j]
                 player_tiles += 1
             elif board[i * 8 + j] == opponent_color:
-                result -= weights[i * 8 + j]
+                d -= weights[i * 8 + j]
                 opponent_tiles += 1
 
             if board[i * 8 + j] is not None:
@@ -67,7 +67,7 @@ def piece_difference(board: list[str | None], player_color: str, opponent_color:
     else:
         f = 0
 
-    return p, f
+    return p, f, d
 
 
 def corner_occupancy(board: list[str | None], player_color: str, opponent_color: str) -> float:
@@ -178,13 +178,19 @@ def mobility(board_state: BoardState, player_color: str, opponent_color: str) ->
     return m
 
 
-def heuristic(board_state: BoardState, player_color: str, opponent_color: str):
-    p, f = piece_difference(board_state.board, player_color, opponent_color)
-    c = corner_occupancy(board_state.board, player_color, opponent_color)
-    l = corner_closeness(board_state.board, player_color, opponent_color)
-    m = mobility(board_state, player_color, opponent_color)
+def heuristic(board_state: BoardState, player_color: str, opponent_color: str, heuristic_strength: int):
+    p = c = l = m = f = d = 0
+    if heuristic_strength > 0:
+        p, f, d = piece_difference(board_state.board, player_color, opponent_color)
+    if heuristic_strength > 1:
+        m = mobility(board_state, player_color, opponent_color)
+    if heuristic_strength > 2:
+        l = corner_closeness(board_state.board, player_color, opponent_color)
+    if heuristic_strength > 3:
+        c = corner_occupancy(board_state.board, player_color, opponent_color)
 
-    score = (10 * p) + (801.724 * c) + (382.026 * l) + (78.922 * m) + (74.396 * f)
+    #print(f'p {p} c {c} l {l} m {m} f {f} d {d}')
+    score = (10 * p) + (801.724 * c) + (382.026 * l) + (78.922 * m) + (74.396 * f) + (10.0 * d)
     return score
 
 
@@ -196,33 +202,57 @@ class OpponentAI:
     board_state: BoardState
 
     state_hash: dict = {} # Hash map of already calculated state branch values (transposition table)
+    color: str
+    heuristic_strength: int
 
-    def get_next_move(self, board_state: BoardState) -> Position:
+    def __init__(self, heuristic_strength):
+        self.heuristic_strength = heuristic_strength
+
+    def get_next_move(self, board_state: BoardState, color: str) -> Position | None:
         root = Node(None)
 
         for move in board_state.available_moves:
             root.add_child(Node(move))
 
+        # White is the maximizer, black is the minimizer
+
+        is_maximizer = True
+        if color == 'B':
+            is_maximizer = False
         # Minimax each child
         for child in root.children:
-            child.value = self.minimax(68, True, -inf, inf, board_state, child.position)
+            max_depth = self.heuristic_strength * 5
+            child.value = self.minimax(max_depth, is_maximizer, -inf, inf, board_state, child.position)
 
-        # Get the best option
-        best_option = root.children[0]
-        for child in root.children:
-            if child.value > best_option.value:
-                best_option = child
+        if len(root.children) < 1:
+            return None
 
-        return best_option.position
+        if color == 'W':
+            best_option = root.children[0]
+            for child in root.children:
+                if child.value > best_option.value:
+                    best_option = child
+
+            return best_option.position
+        else:
+            worst_option = root.children[0]
+            for child in root.children:
+                if child.value < worst_option.value:
+                    worst_option = child
+            return worst_option.position
 
     def minimax(self, depth: int, is_maximizer: bool, alpha: float, beta: float, state: BoardState, child_position: Position) -> float:
         board_state = copy.deepcopy(state)
         board_state.board = copy.deepcopy(board_state.board)
         board_state.make_move(child_position)
 
-        print("depth: ", depth)
         if depth < 1 or board_state.game_over:
-            return heuristic(board_state, 'W', 'B')
+            return heuristic(board_state, 'W', 'B', self.heuristic_strength)
+
+            # if is_maximizer:
+            #     return heuristic(board_state, 'W', 'B', self.heuristic_strength)
+            # else:
+            #     return heuristic(board_state, 'B', 'W', self.heuristic_strength)
 
         if is_maximizer:
             max_val = -inf

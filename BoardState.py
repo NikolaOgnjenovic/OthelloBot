@@ -40,7 +40,7 @@ class BoardState(object):
         self.available_moves = self.get_legal_moves(self.current_player)
 
     def make_move(self, position: Position) -> MoveInfo | None:
-        if not self.available_moves.get(position):
+        if not self.available_moves.get(position) or position is None:
             return None
 
         move_player = self.current_player
@@ -137,4 +137,3 @@ class BoardState(object):
             else:
                 res += p
         return res
-        #return (self.white_discs | self.black_discs).__hash__

@@ -47,24 +47,49 @@ def play_pvp():
     print('Thank you for playing!')
 
 
+def play_ai_vs_ai():
+    board_state = BoardState()
+    blackAI = OpponentAI(4)
+    whiteAI = OpponentAI(4)
+    black_turn = True
+
+    print('Playing...')
+    while not board_state.game_over:
+        #print(f"{board_state.current_player}'s turn")
+
+        if black_turn:
+            position = blackAI.get_next_move(board_state, 'B')
+        else:
+            position = whiteAI.get_next_move(board_state, 'W')
+
+        board_state.make_move(position)
+        black_turn = not black_turn
+
+    print('Game over!')
+    print_board(board_state.board, {})
+    print(
+        f'Winner: {board_state.winner}\nNumber of discs:\nWhite: {board_state.white_discs}\nBlack: {board_state.black_discs}')
+    print('Thank you for playing!')
+
+
 def pruning_benchmark(opponent: OpponentAI, board_state: BoardState):
     start = time.time()
     opponent.should_prune = True
-    position = opponent.get_next_move(copy.deepcopy(board_state))
+    position = opponent.get_next_move(copy.deepcopy(board_state), 'W')
     end = time.time()
     print(f'AI played {position}')
     print(f'Elapsed time (pruning): {end - start}')
 
     start = time.time()
     opponent.should_prune = False
-    position = opponent.get_next_move(copy.deepcopy(board_state))
+    position = opponent.get_next_move(copy.deepcopy(board_state), 'W')
     end = time.time()
     print(f'AI played {position}')
     print(f'Elapsed time: {end - start}')
 
 def play_pve():
     board_state = BoardState()
-    opponent = OpponentAI()
+    opponent = OpponentAI(4)
     players_turn = True
 
     while not board_state.game_over:
@@ -80,7 +105,7 @@ def play_pve():
             board_state.make_move(position)
         else:
             start = time.time()
-            position = opponent.get_next_move(board_state)
+            position = opponent.get_next_move(board_state, 'W')
             end = time.time()
 
             print(f'AI played {position}')
