@@ -8,7 +8,6 @@ def get_opponent(player_color: str):
         return 'W'
     return None
 
-
 def is_inside_board(r: int, c: int):
     return 0 <= r < 8 and 0 <= c < 8
 
@@ -131,4 +130,11 @@ class BoardState(object):
         return moves
 
     def __hash__(self):
-        return (self.white_discs | self.black_discs).__hash__()
+        res = ""
+        for p in self.board:
+            if p is None:
+               res += "."
+            else:
+                res += p
+        return res
+        #return (self.white_discs | self.black_discs).__hash__
