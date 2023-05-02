@@ -1,11 +1,11 @@
 import copy
 
-from Position import Position
 from BoardState import BoardState
 from math import inf
+import time
 
 class Node:
-    def __init__(self, position: Position | None):
+    def __init__(self, position: int | None):
         self.children = []
         self.value = None
         self.position = position
@@ -180,105 +180,114 @@ def mobility(board_state: BoardState, player_color: str, opponent_color: str) ->
 
 def heuristic(board_state: BoardState, player_color: str, opponent_color: str, heuristic_strength: int):
     p = c = l = m = f = d = 0
-    if heuristic_strength > 0:
-        p, f, d = piece_difference(board_state.board, player_color, opponent_color)
-    if heuristic_strength > 1:
-        m = mobility(board_state, player_color, opponent_color)
-    if heuristic_strength > 2:
-        l = corner_closeness(board_state.board, player_color, opponent_color)
-    if heuristic_strength > 3:
-        c = corner_occupancy(board_state.board, player_color, opponent_color)
+
+#if heuristic_strength > 0:
+    p, f, d = piece_difference(board_state.board, player_color, opponent_color)
+#if heuristic_strength > 1:
+    l = corner_closeness(board_state.board, player_color, opponent_color)
+# if heuristic_strength > 2:
+    m = mobility(board_state, player_color, opponent_color)
+#if heuristic_strength > 3:
+    c = corner_occupancy(board_state.board, player_color, opponent_color)
 
     #print(f'p {p} c {c} l {l} m {m} f {f} d {d}')
     score = (10 * p) + (801.724 * c) + (382.026 * l) + (78.922 * m) + (74.396 * f) + (10.0 * d)
     return score
 
 
-# TODO: think of a better hashing algorithm
-def hash_board(board: list[str | None]):
-    return str(board)
-
 class OpponentAI:
     board_state: BoardState
 
     state_hash: dict = {} # Hash map of already calculated state branch values (transposition table)
-    color: str
+    player: str
+    opponent: str
     heuristic_strength: int
+    max_depth: int
+    end_time: float
 
-    def __init__(self, heuristic_strength):
+    def __init__(self, heuristic_strength: int, player: str):
+        self.player = player
+        self.opponent = 'B'
+        if self.player == 'B':
+            self.opponent = 'W'
+
         self.heuristic_strength = heuristic_strength
+        if heuristic_strength == 4:
+            self.max_depth = 20
+        elif heuristic_strength == 3:
+            self.max_depth = 10
+        elif heuristic_strength == 2:
+            self.max_depth = 5
+        else:
+            self.max_depth = 3
 
-    def get_next_move(self, board_state: BoardState, color: str) -> Position | None:
+    def get_next_move(self, board_state: BoardState) -> int | None:
         root = Node(None)
 
         for move in board_state.available_moves:
             root.add_child(Node(move))
 
-        # White is the maximizer, black is the minimizer
+        depth = 4
+        end_time = time.time() + 2.9
+        self.end_time = end_time
+        option = None
+        while depth < self.max_depth and time.time() < end_time:
+            #print('Depth: ', depth, ' Time - end: ' + str(time.time() - end_time))
 
-        is_maximizer = True
-        if color == 'B':
-            is_maximizer = False
-        # Minimax each child
-        for child in root.children:
-            max_depth = self.heuristic_strength * 5
-            child.value = self.minimax(max_depth, is_maximizer, -inf, inf, board_state, child.position)
+            # Minimax each child
+            for child in root.children:
+                child.value = self.minimax(depth, True, -inf, inf, board_state, child.position)
 
-        if len(root.children) < 1:
+            if len(root.children) < 1:
+                return None
+
+            option = root.children[0]
+            for i in range(1, len(root.children)):
+                if root.children[i].value > option.value:
+                    option = root.children[i]
+
+            depth += 1
+
+        print('Max depth reached: ', depth)
+        if option is not None:
+            return option.position
+        else:
             return None
 
-        if color == 'W':
-            best_option = root.children[0]
-            for child in root.children:
-                if child.value > best_option.value:
-                    best_option = child
-
-            return best_option.position
-        else:
-            worst_option = root.children[0]
-            for child in root.children:
-                if child.value < worst_option.value:
-                    worst_option = child
-            return worst_option.position
-
-    def minimax(self, depth: int, is_maximizer: bool, alpha: float, beta: float, state: BoardState, child_position: Position) -> float:
+    def minimax(self, depth: int, is_maximizer: bool, alpha: float, beta: float, state: BoardState, move_position: int) -> float:
         board_state = copy.deepcopy(state)
         board_state.board = copy.deepcopy(board_state.board)
-        board_state.make_move(child_position)
+        board_state.make_move(move_position)
 
-        if depth < 1 or board_state.game_over:
-            return heuristic(board_state, 'W', 'B', self.heuristic_strength)
-
-            # if is_maximizer:
-            #     return heuristic(board_state, 'W', 'B', self.heuristic_strength)
-            # else:
-            #     return heuristic(board_state, 'B', 'W', self.heuristic_strength)
+        if time.time() > self.end_time or depth < 1 or board_state.game_over:
+            return heuristic(board_state, self.player, self.opponent, self.heuristic_strength)
 
         if is_maximizer:
-            max_val = -inf
             for move in board_state.available_moves:
-                if self.state_hash.__contains__(board_state.__hash__()):
-                    val = self.state_hash.get(board_state.__hash__())
-                else:
-                    val = self.minimax(depth - 1, False, alpha, beta, board_state, move)
-                    self.state_hash.update({board_state.__hash__(): val})
+                #hash_value = (board_state.black_discs | board_state.white_discs).__hash__()
+                # hash_value = str(move.__hash__()) + str(board_state)
+                # if self.state_hash.__contains__(hash_value):
+                #     val = self.state_hash.get(hash_value)
+                # else:
+                #     val = self.minimax(depth - 1, False, alpha, beta, board_state, move)
+                #     self.state_hash.update({hash_value: val})
+                val = self.minimax(depth - 1, False, alpha, beta, board_state, move)
 
-                max_val = max(max_val, val)
                 alpha = max(alpha, val)
-                if beta <= alpha:
-                    break
-            return max_val
+                if alpha >= beta:
+                    return beta
+            return alpha
         else:
-            min_val = inf
             for move in board_state.available_moves:
-                if self.state_hash.__contains__(board_state.__hash__()):
-                    val = self.state_hash.get(board_state.__hash__())
-                else:
-                    val = self.minimax(depth - 1, True, alpha, beta, board_state, move)
-                    self.state_hash.update({board_state.__hash__(): val})
+                # hash_value = str(move.__hash__()) + str(board_state)
+                # if self.state_hash.__contains__(hash_value):
+                #     val = self.state_hash.get(hash_value)
+                # else:
+                #     val = self.minimax(depth - 1, True, alpha, beta, board_state, move)
+                #     self.state_hash.update({hash_value: val})
+                val = self.minimax(depth - 1, True, alpha, beta, board_state, move)
 
-                min_val = min(min_val, val)
                 beta = min(beta, val)
-                if beta <= alpha:
-                    break
-            return min_val
+                if alpha >= beta:
+                    return alpha
+            return beta

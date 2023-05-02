@@ -1,6 +1,3 @@
-from Position import Position
-from MoveInfo import MoveInfo
-
 def get_opponent(player_color: str):
     if player_color == 'W':
         return 'B'
@@ -13,16 +10,13 @@ def is_inside_board(r: int, c: int):
 
 
 class BoardState(object):
-    ROWS = 8
-    COLUMNS = 8
-
     board: list[str | None] = [] # index = board[row * 8 + j]
     black_discs: int = 0
     white_discs: int = 0
     current_player : str | None = None
     game_over: bool = False
     winner: str = None
-    available_moves: dict = {} # Position -> list[Position]
+    available_moves: dict = {} # int (position) -> list[int (positions)]
 
     def __init__(self):
         for i in range(8):
@@ -39,23 +33,21 @@ class BoardState(object):
         self.current_player = 'B'
         self.available_moves = self.get_legal_moves(self.current_player)
 
-    def make_move(self, position: Position) -> MoveInfo | None:
+    def make_move(self, position: int):
         if not self.available_moves.get(position) or position is None:
             return None
 
         move_player = self.current_player
         outflanked = self.available_moves[position]
 
-        self.board[position.row * 8 + position.column] = move_player
+        self.board[position] = move_player
         self.flip_discs(outflanked)
         self.update_disc_counts(self.current_player, len(outflanked))
         self.pass_turn()
 
-        return MoveInfo(move_player, position, outflanked)
-
-    def flip_discs(self, positions: list[Position]):
+    def flip_discs(self, positions: list[int]):
         for position in positions:
-            self.board[position.row * 8 + position.column] = get_opponent(self.board[position.row * 8 + position.column])
+            self.board[position] = get_opponent(self.board[position])
 
     def update_disc_counts(self, player_color: str, count: int):
         if count == 0:
@@ -89,21 +81,21 @@ class BoardState(object):
             self.game_over = True
             self.winner = self.get_winner()
 
-    def outflanked_in_direction(self, position: Position, player_color: str, row_delta: int, column_delta: int) -> list[Position]:
+    def outflanked_in_direction(self, position: int, player_color: str, row_delta: int, column_delta: int) -> list[int]:
         outflanked = []
-        r = position.row + row_delta
-        c = position.column + column_delta
+        r = position // 8 + row_delta
+        c = position % 8 + column_delta
 
         while is_inside_board(r, c) and self.board[r * 8 + c] is not None:
             if self.board[r * 8 + c] == get_opponent(player_color):
-                outflanked.append(Position(r, c))
+                outflanked.append(r * 8 + c)
                 r += row_delta
                 c += column_delta
             else:
                 return outflanked
         return []
 
-    def calculate_outflanked(self, position: Position, player_color: str):
+    def calculate_outflanked(self, position: int, player_color: str):
         outflanked = []
         for r in range(-1, 2):
             for c in range(-1, 2):
@@ -113,27 +105,18 @@ class BoardState(object):
 
         return outflanked
 
-    def move_is_legal(self, position: Position, player_color: str) -> list[Position]:
-        if self.board[position.row * 8 + position.column] is not None:
+    def move_is_legal(self, position: int, player_color: str) -> list[int]:
+        if self.board[position] is not None:
             return []
         return self.calculate_outflanked(position, player_color)
 
-    def get_legal_moves(self, player_color: str) -> dict: # -> Position -> List[Position]
+    def get_legal_moves(self, player_color: str) -> dict: # -> int -> List[int]
         moves = {}
         for r in range(8):
             for c in range(8):
-                position = Position(r, c)
+                position = r * 8 + c
                 outflanked = self.move_is_legal(position, player_color)
                 if len(outflanked) > 0:
                     moves.update({position: outflanked})
 
         return moves
-
-    def __hash__(self):
-        res = ""
-        for p in self.board:
-            if p is None:
-               res += "."
-            else:
-                res += p
-        return res

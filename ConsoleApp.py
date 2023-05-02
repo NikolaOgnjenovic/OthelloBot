@@ -1,6 +1,4 @@
-import copy
 from BoardState import BoardState
-from Position import Position
 from OpponentAI import OpponentAI
 import time
 
@@ -13,7 +11,7 @@ def print_board(board: list[str | None], moves: dict):
     for i in range(8):
         row = str(i + 1) + ' '
         for j in range(8):
-            if moves.__contains__(Position(i, j)):
+            if moves.__contains__(i * 8 + j):
                 row += 'X '
             elif board[i * 8 + j] is None:
                 row += '. '
@@ -25,7 +23,7 @@ def print_board(board: list[str | None], moves: dict):
 def print_available_moves(moves):
     print('Available moves:')
     for move in moves:
-        print(move)
+        print(chr(move % 8 + ord('A')) + ' ' + str(move // 8 + 1))
 
 def play_pvp():
     board_state = BoardState()
@@ -38,7 +36,7 @@ def play_pvp():
 
         move = input('Input your move e. g. [A 1]\n>')
         pos = move.split(' ')
-        position = Position(int(pos[1]) - 1, ord(pos[0]) - ord('A'))
+        position = (int(pos[1]) - 1) * 8 + (ord(pos[0]) - ord('A'))
         board_state.make_move(position)
 
     print('Game over!')
@@ -49,19 +47,24 @@ def play_pvp():
 
 def play_ai_vs_ai():
     board_state = BoardState()
-    blackAI = OpponentAI(4)
-    whiteAI = OpponentAI(4)
+    blackAI = OpponentAI(4, 'B')
+    whiteAI = OpponentAI(4, 'W')
     black_turn = True
 
     print('Playing...')
     while not board_state.game_over:
-        #print(f"{board_state.current_player}'s turn")
+        print(f"{board_state.current_player}'s turn")
+        print_available_moves(board_state.available_moves)
 
+        start = time.time()
         if black_turn:
-            position = blackAI.get_next_move(board_state, 'B')
+            position = blackAI.get_next_move(board_state)
         else:
-            position = whiteAI.get_next_move(board_state, 'W')
+            position = whiteAI.get_next_move(board_state)
+        end = time.time()
 
+        print(f'{board_state.current_player} AI played {position}')
+        print(f'Elapsed time: {end - start}\n')
         board_state.make_move(position)
         black_turn = not black_turn
 
@@ -71,25 +74,9 @@ def play_ai_vs_ai():
         f'Winner: {board_state.winner}\nNumber of discs:\nWhite: {board_state.white_discs}\nBlack: {board_state.black_discs}')
     print('Thank you for playing!')
 
-
-def pruning_benchmark(opponent: OpponentAI, board_state: BoardState):
-    start = time.time()
-    opponent.should_prune = True
-    position = opponent.get_next_move(copy.deepcopy(board_state), 'W')
-    end = time.time()
-    print(f'AI played {position}')
-    print(f'Elapsed time (pruning): {end - start}')
-
-    start = time.time()
-    opponent.should_prune = False
-    position = opponent.get_next_move(copy.deepcopy(board_state), 'W')
-    end = time.time()
-    print(f'AI played {position}')
-    print(f'Elapsed time: {end - start}')
-
 def play_pve():
     board_state = BoardState()
-    opponent = OpponentAI(4)
+    opponent = OpponentAI(4, 'W')
     players_turn = True
 
     while not board_state.game_over:
@@ -101,14 +88,14 @@ def play_pve():
         if players_turn:
             move = input('Input your move e. g. [A 1]\n>>')
             pos = move.split(' ')
-            position = Position(int(pos[1]) - 1, ord(pos[0]) - ord('A'))
+            position = (int(pos[1]) - 1) * 8 + (ord(pos[0]) - ord('A'))
             board_state.make_move(position)
         else:
             start = time.time()
-            position = opponent.get_next_move(board_state, 'W')
+            position = opponent.get_next_move(board_state)
             end = time.time()
 
-            print(f'AI played {position}')
+            print(f'AI played {chr(position % 8 + ord("A"))} {str(position // 8 + 1)}')
             print(f'Elapsed time (pruning): {end - start}')
 
             board_state.make_move(position)
