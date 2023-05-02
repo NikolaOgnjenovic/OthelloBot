@@ -4,8 +4,13 @@ from BoardState import BoardState
 from math import inf
 import time
 
+
+def nth_bit_set(number: int, n: int) -> bool:
+    return (number & (1 << n)) == 0
+
+
 class Node:
-    def __init__(self, position: int | None):
+    def __init__(self, position: int):
         self.children = []
         self.value = None
         self.position = position
@@ -27,8 +32,7 @@ x_weights = [-1, -1, 0, 1, 1, 1, 0, -1]
 y_weights = [0, 1, 1, 1, 0, -1, -1, -1]
 
 # Piece difference, frontier disks and disk squares
-def piece_difference(board: list[str | None], player_color: str, opponent_color: str) -> (float, float):
-
+def piece_difference(player_board: int, opponent_board: int) -> (float, float, float):
     player_tiles = 0
     opponent_tiles = 0
     player_front_tiles = 0
@@ -36,19 +40,19 @@ def piece_difference(board: list[str | None], player_color: str, opponent_color:
     d = 0
     for i in range(8):
         for j in range(8):
-            if board[i * 8 + j] == player_color:
+            if nth_bit_set(player_board, i * 8 + j):
                 d += weights[i * 8 + j]
                 player_tiles += 1
-            elif board[i * 8 + j] == opponent_color:
+            elif nth_bit_set(opponent_board, i * 8 + j):
                 d -= weights[i * 8 + j]
                 opponent_tiles += 1
 
-            if board[i * 8 + j] is not None:
+            if nth_bit_set(opponent_board, i * 8 + j) or nth_bit_set(player_board, i * 8 + j):
                 for k in range(8):
                     x = i + x_weights[k]
                     y = j + y_weights[k]
-                    if 0 <= x < 8 and 0 <= y < 8 and board[i * 8 + j] is None:
-                        if board[i * 8 + j] == player_color:
+                    if 0 <= x < 8 and 0 <= y < 8 and not (nth_bit_set(opponent_board, i * 8 + j) or nth_bit_set(player_board, i * 8 + j)):
+                        if nth_bit_set(opponent_board, i * 8 + j):
                             player_front_tiles += 1
                         else:
                             opponent_front_tiles += 1
@@ -70,103 +74,104 @@ def piece_difference(board: list[str | None], player_color: str, opponent_color:
     return p, f, d
 
 
-def corner_occupancy(board: list[str | None], player_color: str, opponent_color: str) -> float:
+def corner_occupancy(player_board: int, opponent_board: int) -> float:
     player_tiles = opponent_tiles = 0
-    if board[0] == player_color:
+    if nth_bit_set(player_board, 0):
         player_tiles += 1
-    elif board[0] == opponent_color:
+    elif nth_bit_set(opponent_board, 0):
         opponent_tiles += 1
 
-    if board[7] == player_color:
+    if nth_bit_set(player_board, 7):
         player_tiles += 1
-    elif board[7] == opponent_color:
+    elif nth_bit_set(opponent_board, 7):
         opponent_tiles += 1
 
-    if board[21] == player_color:
+    if nth_bit_set(player_board, 21):
         player_tiles += 1
-    elif board[21] == opponent_color:
+    elif nth_bit_set(opponent_board, 21):
         opponent_tiles += 1
 
-    if board[28] == player_color:
+    if nth_bit_set(player_board, 28):
         player_tiles += 1
-    elif board[28] == opponent_color:
+    elif nth_bit_set(opponent_board, 28):
         opponent_tiles += 1
 
     return 25 * (player_tiles - opponent_tiles)
 
 
-def corner_closeness(board: list[str | None], player_color: str, opponent_color: str) -> float:
+def corner_closeness(player_board: int, opponent_board: int) -> float:
     player_tiles = opponent_tiles = 0
-    if board[0] is None:
-        if board[1] == player_color:
+
+    if not (nth_bit_set(opponent_board, 0) or nth_bit_set(player_board, 0)):
+        if nth_bit_set(player_board, 1):
             player_tiles += 1
-        elif board[1] == opponent_color:
+        elif nth_bit_set(opponent_board, 1):
             opponent_tiles += 1
 
-        if board[4] == player_color:
+        if nth_bit_set(player_board, 4):
             player_tiles += 1
-        elif board[4] == opponent_color:
+        elif nth_bit_set(opponent_board, 4):
             opponent_tiles += 1
 
-        if board[3] == player_color:
+        if nth_bit_set(player_board, 3):
             player_tiles += 1
-        elif board[3] == opponent_color:
+        elif nth_bit_set(opponent_board, 3):
             opponent_tiles += 1
 
-    if board[7] == '-':
-        if board[6] == player_color:
+    if not (nth_bit_set(opponent_board, 7) or nth_bit_set(player_board, 7)):
+        if nth_bit_set(player_board, 6):
             player_tiles += 1
-        elif board[6] == opponent_color:
+        elif nth_bit_set(opponent_board, 6):
             opponent_tiles += 1
 
-        if board[9] == player_color:
+        if nth_bit_set(player_board, 9):
             player_tiles += 1
-        elif board[9] == opponent_color:
+        elif nth_bit_set(opponent_board, 9):
             opponent_tiles += 1
 
-        if board[10] == player_color:
+        if nth_bit_set(player_board, 10):
             player_tiles += 1
-        elif board[10] == opponent_color:
+        elif nth_bit_set(opponent_board, 10):
             opponent_tiles += 1
 
-    if board[7] == '-':
-        if board[22] == player_color:
+    if not (nth_bit_set(opponent_board, 21) or nth_bit_set(player_board, 21)):
+        if nth_bit_set(player_board, 22):
             player_tiles += 1
-        elif board[22] == opponent_color:
+        elif nth_bit_set(opponent_board, 22):
             opponent_tiles += 1
 
-        if board[19] == player_color:
+        if nth_bit_set(player_board, 19):
             player_tiles += 1
-        elif board[19] == opponent_color:
+        elif nth_bit_set(opponent_board, 19):
             opponent_tiles += 1
 
-        if board[18] == player_color:
+        if nth_bit_set(player_board, 18):
             player_tiles += 1
-        elif board[18] == opponent_color:
+        elif nth_bit_set(opponent_board, 18):
             opponent_tiles += 1
 
-    if board[28] == '-':
-        if board[25] == player_color:
+    if not (nth_bit_set(opponent_board, 28) or nth_bit_set(player_board, 28)):
+        if nth_bit_set(player_board, 25):
             player_tiles += 1
-        elif board[25] == opponent_color:
+        elif nth_bit_set(opponent_board, 25):
             opponent_tiles += 1
 
-        if board[24] == player_color:
+        if nth_bit_set(player_board, 24):
             player_tiles += 1
-        elif board[24] == opponent_color:
+        elif nth_bit_set(opponent_board, 24):
             opponent_tiles += 1
 
-        if board[27] == player_color:
+        if nth_bit_set(player_board, 27):
             player_tiles += 1
-        elif board[27] == opponent_color:
+        elif nth_bit_set(opponent_board, 27):
             opponent_tiles += 1
 
     return -12.5 * (player_tiles - opponent_tiles)
 
 
-def mobility(board_state: BoardState, player_color: str, opponent_color: str) -> float:
-    player_tiles = len(board_state.get_legal_moves(player_color))
-    opponent_tiles = len(board_state.get_legal_moves(opponent_color))
+def mobility(board_state: BoardState, is_black: bool) -> float:
+    player_tiles = len(board_state.get_legal_moves(is_black))
+    opponent_tiles = len(board_state.get_legal_moves(is_black))
 
     if player_tiles > opponent_tiles:
         m = (100.0 * player_tiles) / (player_tiles + opponent_tiles)
@@ -178,18 +183,17 @@ def mobility(board_state: BoardState, player_color: str, opponent_color: str) ->
     return m
 
 
-def heuristic(board_state: BoardState, player_color: str, opponent_color: str, heuristic_strength: int):
-    p = c = l = m = f = d = 0
+def heuristic(board_state: BoardState, is_black: bool, heuristic_strength: int):
+    if is_black:
+        p, f, d = piece_difference(board_state.black_board, board_state.white_board)
+        l = corner_closeness(board_state.black_board, board_state.white_board)
+        c = corner_occupancy(board_state.black_board, board_state.white_board)
+    else:
+        p, f, d = piece_difference(board_state.white_board, board_state.black_board)
+        l = corner_closeness(board_state.white_board, board_state.black_board)
+        c = corner_occupancy(board_state.white_board, board_state.black_board)
 
-#if heuristic_strength > 0:
-    p, f, d = piece_difference(board_state.board, player_color, opponent_color)
-#if heuristic_strength > 1:
-    l = corner_closeness(board_state.board, player_color, opponent_color)
-# if heuristic_strength > 2:
-    m = mobility(board_state, player_color, opponent_color)
-#if heuristic_strength > 3:
-    c = corner_occupancy(board_state.board, player_color, opponent_color)
-
+    m = mobility(board_state, is_black)
     #print(f'p {p} c {c} l {l} m {m} f {f} d {d}')
     score = (10 * p) + (801.724 * c) + (382.026 * l) + (78.922 * m) + (74.396 * f) + (10.0 * d)
     return score
@@ -198,18 +202,15 @@ def heuristic(board_state: BoardState, player_color: str, opponent_color: str, h
 class OpponentAI:
     board_state: BoardState
 
-    state_hash: dict = {} # Hash map of already calculated state branch values (transposition table)
-    player: str
-    opponent: str
+    state_hash: dict # Hash map of already calculated state branch values (transposition table)
+    is_black: bool
     heuristic_strength: int
     max_depth: int
     end_time: float
 
-    def __init__(self, heuristic_strength: int, player: str):
-        self.player = player
-        self.opponent = 'B'
-        if self.player == 'B':
-            self.opponent = 'W'
+    def __init__(self, is_black: bool, heuristic_strength: int):
+        self.state_hash = {}
+        self.is_black = is_black
 
         self.heuristic_strength = heuristic_strength
         if heuristic_strength == 4:
@@ -219,10 +220,10 @@ class OpponentAI:
         elif heuristic_strength == 2:
             self.max_depth = 5
         else:
-            self.max_depth = 3
+            self.max_depth = 4
 
     def get_next_move(self, board_state: BoardState) -> int | None:
-        root = Node(None)
+        root = Node(-1)
 
         for move in board_state.available_moves:
             root.add_child(Node(move))
@@ -231,8 +232,8 @@ class OpponentAI:
         end_time = time.time() + 2.9
         self.end_time = end_time
         option = None
-        while depth < self.max_depth and time.time() < end_time:
-            #print('Depth: ', depth, ' Time - end: ' + str(time.time() - end_time))
+        while depth <= self.max_depth and time.time() < end_time:
+            # print('Depth: ', depth, ' Time - end: ' + str(time.time() - end_time))
 
             # Minimax each child
             for child in root.children:
@@ -248,7 +249,7 @@ class OpponentAI:
 
             depth += 1
 
-        print('Max depth reached: ', depth)
+        print('Max depth reached:', depth - 1)
         if option is not None:
             return option.position
         else:
@@ -256,16 +257,14 @@ class OpponentAI:
 
     def minimax(self, depth: int, is_maximizer: bool, alpha: float, beta: float, state: BoardState, move_position: int) -> float:
         board_state = copy.deepcopy(state)
-        board_state.board = copy.deepcopy(board_state.board)
         board_state.make_move(move_position)
 
         if time.time() > self.end_time or depth < 1 or board_state.game_over:
-            return heuristic(board_state, self.player, self.opponent, self.heuristic_strength)
+            return heuristic(board_state, self.is_black, self.heuristic_strength)
 
         if is_maximizer:
             for move in board_state.available_moves:
-                #hash_value = (board_state.black_discs | board_state.white_discs).__hash__()
-                # hash_value = str(move.__hash__()) + str(board_state)
+                # hash_value = str(board_state.white_board) + ' ' + str(board_state.black_board) + ' ' + str(move)
                 # if self.state_hash.__contains__(hash_value):
                 #     val = self.state_hash.get(hash_value)
                 # else:
@@ -279,7 +278,7 @@ class OpponentAI:
             return alpha
         else:
             for move in board_state.available_moves:
-                # hash_value = str(move.__hash__()) + str(board_state)
+                # hash_value = str(board_state.white_board) + ' ' + str(board_state.black_board) + ' ' + str(move)
                 # if self.state_hash.__contains__(hash_value):
                 #     val = self.state_hash.get(hash_value)
                 # else:

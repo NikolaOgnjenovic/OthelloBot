@@ -2,7 +2,12 @@ from BoardState import BoardState
 from OpponentAI import OpponentAI
 import time
 
-def print_board(board: list[str | None], moves: dict):
+
+def nth_bit_set(number: int, n: int):
+    return (number & (1 << n)) == 0
+
+
+def print_board(white_board: int, black_board: int, moves: dict):
     print('W - white, B - black, X - available move position')
     print('Current board state:')
     row_text = '  A B C D E F G H'
@@ -11,12 +16,15 @@ def print_board(board: list[str | None], moves: dict):
     for i in range(8):
         row = str(i + 1) + ' '
         for j in range(8):
-            if moves.__contains__(i * 8 + j):
+            position = i * 8 + j
+            if moves.__contains__(position):
                 row += 'X '
-            elif board[i * 8 + j] is None:
-                row += '. '
+            elif nth_bit_set(white_board, position):
+                row += 'W '
+            elif nth_bit_set(black_board, position):
+                row += 'B '
             else:
-                row += board[i * 8 + j] + ' '
+                row += '. '
         print(row)
     print()
 
@@ -29,9 +37,12 @@ def play_pvp():
     board_state = BoardState()
 
     while not board_state.game_over:
-        print_board(board_state.board, board_state.available_moves)
+        print_board(board_state.white_board, board_state.black_board, board_state.available_moves)
 
-        print(f"{board_state.current_player}'s turn")
+        if board_state.black_turn:
+            print("Black player's turn")
+        else:
+            print("White player's turn")
         print_available_moves(board_state.available_moves)
 
         move = input('Input your move e. g. [A 1]\n>')
@@ -40,20 +51,23 @@ def play_pvp():
         board_state.make_move(position)
 
     print('Game over!')
-    print_board(board_state.board, {})
+    print_board(board_state.white_board, board_state.black_board, {})
     print(f'Winner: {board_state.winner}\nNumber of discs:\nWhite: {board_state.white_discs}\nBlack: {board_state.black_discs}')
     print('Thank you for playing!')
 
 
 def play_ai_vs_ai():
     board_state = BoardState()
-    blackAI = OpponentAI(4, 'B')
-    whiteAI = OpponentAI(4, 'W')
+    blackAI = OpponentAI(True, 4)
+    whiteAI = OpponentAI(False, 4)
     black_turn = True
 
     print('Playing...')
     while not board_state.game_over:
-        print(f"{board_state.current_player}'s turn")
+        if board_state.black_turn:
+            print("Black player's turn")
+        else:
+            print("White player's turn")
         print_available_moves(board_state.available_moves)
 
         start = time.time()
@@ -63,26 +77,33 @@ def play_ai_vs_ai():
             position = whiteAI.get_next_move(board_state)
         end = time.time()
 
-        print(f'{board_state.current_player} AI played {position}')
+        if position is None:
+            print('Turn skipped')
+        else:
+            print(f'AI played {chr(position % 8 + ord("A"))} {str(position // 8 + 1)}')
         print(f'Elapsed time: {end - start}\n')
         board_state.make_move(position)
         black_turn = not black_turn
 
     print('Game over!')
-    print_board(board_state.board, {})
+    print_board(board_state.white_board, board_state.black_board, {})
     print(
         f'Winner: {board_state.winner}\nNumber of discs:\nWhite: {board_state.white_discs}\nBlack: {board_state.black_discs}')
     print('Thank you for playing!')
 
+
 def play_pve():
     board_state = BoardState()
-    opponent = OpponentAI(4, 'W')
+    opponent = OpponentAI(False, 4)
     players_turn = True
 
     while not board_state.game_over:
-        print_board(board_state.board, board_state.available_moves)
+        print_board(board_state.white_board, board_state.black_board, board_state.available_moves)
 
-        print(f"{board_state.current_player}'s turn")
+        if board_state.black_turn:
+            print("Black player's turn")
+        else:
+            print("White player's turn")
         print_available_moves(board_state.available_moves)
 
         if players_turn:
@@ -102,7 +123,7 @@ def play_pve():
         players_turn = not players_turn
 
     print('Game over!')
-    print_board(board_state.board, {})
+    print_board(board_state.white_board, board_state.black_board, {})
     print(
         f'Winner: {board_state.winner}\nNumber of discs:\nWhite: {board_state.white_discs}\nBlack: {board_state.black_discs}')
     print('Thank you for playing!')

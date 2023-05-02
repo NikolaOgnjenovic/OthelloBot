@@ -1,3 +1,7 @@
+def nth_bit_set(number: int, n: int) -> bool:
+    return (number & (1 << n)) == 0
+
+
 def get_opponent(player_color: str):
     if player_color == 'W':
         return 'B'
@@ -5,63 +9,71 @@ def get_opponent(player_color: str):
         return 'W'
     return None
 
-def is_inside_board(r: int, c: int):
+
+def is_inside_board(r: int, c: int) -> bool:
     return 0 <= r < 8 and 0 <= c < 8
 
 
 class BoardState(object):
-    board: list[str | None] = [] # index = board[row * 8 + j]
-    black_discs: int = 0
-    white_discs: int = 0
-    current_player : str | None = None
+    black_board: int # Black player bitboard (64 * 1)
+    white_board: int # White player bitboard (64 * 1)
+    black_discs: int
+    white_discs: int
+    black_turn: bool = True
     game_over: bool = False
     winner: str = None
     available_moves: dict = {} # int (position) -> list[int (positions)]
 
-    def __init__(self):
-        for i in range(8):
-            for j in range(8):
-                self.board.append(None)
+    def toggle_white_bit(self, n: int):
+        self.white_board  = self.white_board ^ (1 << n)
+    def toggle_black_bit(self, n: int):
+        self.black_board = self.black_board ^ (1 << n)
 
-        self.board[27] = 'W'
-        self.board[28] = 'B'
-        self.board[35] = 'B'
-        self.board[36] = 'W'
+    def __init__(self):
+        self.black_board = 0xFFFFFFFFFFFFFFFF
+        self.white_board = 0xFFFFFFFFFFFFFFFF
+
+        self.toggle_white_bit(27)
+        self.toggle_black_bit(28)
+        self.toggle_black_bit(35)
+        self.toggle_white_bit(36)
         self.black_discs = 2
         self.white_discs = 2
 
-        self.current_player = 'B'
-        self.available_moves = self.get_legal_moves(self.current_player)
+        self.available_moves = self.get_legal_moves(self.black_turn)
 
     def make_move(self, position: int):
         if not self.available_moves.get(position) or position is None:
             return None
 
-        move_player = self.current_player
         outflanked = self.available_moves[position]
 
-        self.board[position] = move_player
+        if self.black_turn:
+            self.toggle_black_bit(position)
+        else:
+            self.toggle_white_bit(position)
         self.flip_discs(outflanked)
-        self.update_disc_counts(self.current_player, len(outflanked))
+        self.update_disc_counts(len(outflanked))
         self.pass_turn()
 
     def flip_discs(self, positions: list[int]):
         for position in positions:
-            self.board[position] = get_opponent(self.board[position])
+            self.toggle_white_bit(position)
+            self.toggle_black_bit(position)
 
-    def update_disc_counts(self, player_color: str, count: int):
+    def update_disc_counts(self, count: int):
         if count == 0:
             return
-        if player_color == "B":
+        if self.black_turn:
             self.black_discs += count + 1
             self.white_discs -= count
-        elif player_color == "W":
+        else:
             self.white_discs += count + 1
             self.black_discs -= count
 
     def swap_player(self):
-        self.current_player = get_opponent(self.current_player)
-        self.available_moves = self.get_legal_moves(self.current_player)
+        self.black_turn = not self.black_turn
+        self.available_moves = self.get_legal_moves(self.black_turn)
 
     def get_winner(self) -> str | None:
         if self.black_discs > self.white_discs:
@@ -76,18 +88,21 @@ class BoardState(object):
             return
 
         self.swap_player()
-        if len(self.available_moves) < 1:
-            self.current_player = None
+        if len(self.available_moves) == 0:
             self.game_over = True
             self.winner = self.get_winner()
 
-    def outflanked_in_direction(self, position: int, player_color: str, row_delta: int, column_delta: int) -> list[int]:
+    def outflanked_in_direction(self, position: int, row_delta: int, column_delta: int, is_black: bool) -> list[int]:
         outflanked = []
         r = position // 8 + row_delta
         c = position % 8 + column_delta
 
-        while is_inside_board(r, c) and self.board[r * 8 + c] is not None:
-            if self.board[r * 8 + c] == get_opponent(player_color):
+        while is_inside_board(r, c) and (nth_bit_set(self.black_board, r * 8 + c) or nth_bit_set(self.white_board, r * 8 + c)):
+            if is_black and nth_bit_set(self.white_board, r * 8 + c):
+                    outflanked.append(r * 8 + c)
+                    r += row_delta
+                    c += column_delta
+            elif not is_black and nth_bit_set(self.black_board, r * 8 + c):
                 outflanked.append(r * 8 + c)
                 r += row_delta
                 c += column_delta
@@ -95,27 +110,28 @@ class BoardState(object):
                 return outflanked
         return []
 
-    def calculate_outflanked(self, position: int, player_color: str):
+    def calculate_outflanked(self, position: int, is_black: bool):
         outflanked = []
         for r in range(-1, 2):
             for c in range(-1, 2):
                 if r == 0 and c == 0:
                     continue
-                outflanked.extend(self.outflanked_in_direction(position, player_color, r, c))
+                outflanked.extend(self.outflanked_in_direction(position, r, c, is_black))
 
         return outflanked
 
-    def move_is_legal(self, position: int, player_color: str) -> list[int]:
-        if self.board[position] is not None:
+    def move_is_legal(self, position: int, is_black: bool) -> list[int]:
+        if nth_bit_set(self.black_board, position) or nth_bit_set(self.white_board, position):
             return []
-        return self.calculate_outflanked(position, player_color)
 
-    def get_legal_moves(self, player_color: str) -> dict: # -> int -> List[int]
+        return self.calculate_outflanked(position, is_black)
+
+    def get_legal_moves(self, is_black: bool) -> dict: # -> int -> List[int]
         moves = {}
         for r in range(8):
             for c in range(8):
                 position = r * 8 + c
-                outflanked = self.move_is_legal(position, player_color)
+                outflanked = self.move_is_legal(position, is_black)
                 if len(outflanked) > 0:
                     moves.update({position: outflanked})
 
