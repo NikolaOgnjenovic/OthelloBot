@@ -183,7 +183,14 @@ def mobility(board_state: BoardState, is_black: bool) -> float:
     return m
 
 
+state_hash: dict = {} # Hash map of already calculated state branch values (transposition table)
+
 def heuristic(board_state: BoardState, is_black: bool, heuristic_strength: int):
+    global state_hash
+    board_hash = str(board_state.black_board) + ' ' + str(board_state.white_board)
+    if state_hash.__contains__(board_hash):
+        return state_hash.get(board_hash)
+
     if is_black:
         p, f, d = piece_difference(board_state.black_board, board_state.white_board)
         l = corner_closeness(board_state.black_board, board_state.white_board)
@@ -196,13 +203,13 @@ def heuristic(board_state: BoardState, is_black: bool, heuristic_strength: int):
     m = mobility(board_state, is_black)
     #print(f'p {p} c {c} l {l} m {m} f {f} d {d}')
     score = (10 * p) + (801.724 * c) + (382.026 * l) + (78.922 * m) + (74.396 * f) + (10.0 * d)
+    state_hash[board_hash] = score
     return score
 
 
 class OpponentAI:
     board_state: BoardState
 
-    state_hash: dict # Hash map of already calculated state branch values (transposition table)
     is_black: bool
     heuristic_strength: int
     max_depth: int
@@ -233,7 +240,7 @@ class OpponentAI:
         self.end_time = end_time
         option = None
         while depth <= self.max_depth and time.time() < end_time:
-            # print('Depth: ', depth, ' Time - end: ' + str(time.time() - end_time))
+            #print('Depth: ', depth, ' Time - end: ' + str(time.time() - end_time))
 
             # Minimax each child
             for child in root.children:
@@ -256,6 +263,7 @@ class OpponentAI:
             return None
 
     def minimax(self, depth: int, is_maximizer: bool, alpha: float, beta: float, state: BoardState, move_position: int) -> float:
+        # TODO: potez unazad da nemam deepcopy
         board_state = copy.deepcopy(state)
         board_state.make_move(move_position)
 
@@ -264,12 +272,6 @@ class OpponentAI:
 
         if is_maximizer:
             for move in board_state.available_moves:
-                # hash_value = str(board_state.white_board) + ' ' + str(board_state.black_board) + ' ' + str(move)
-                # if self.state_hash.__contains__(hash_value):
-                #     val = self.state_hash.get(hash_value)
-                # else:
-                #     val = self.minimax(depth - 1, False, alpha, beta, board_state, move)
-                #     self.state_hash.update({hash_value: val})
                 val = self.minimax(depth - 1, False, alpha, beta, board_state, move)
 
                 alpha = max(alpha, val)
@@ -278,12 +280,6 @@ class OpponentAI:
             return alpha
         else:
             for move in board_state.available_moves:
-                # hash_value = str(board_state.white_board) + ' ' + str(board_state.black_board) + ' ' + str(move)
-                # if self.state_hash.__contains__(hash_value):
-                #     val = self.state_hash.get(hash_value)
-                # else:
-                #     val = self.minimax(depth - 1, True, alpha, beta, board_state, move)
-                #     self.state_hash.update({hash_value: val})
                 val = self.minimax(depth - 1, True, alpha, beta, board_state, move)
 
                 beta = min(beta, val)
