@@ -8,7 +8,7 @@ def nth_bit_set(number: int, n: int):
 
 
 def print_board(white_board: int, black_board: int, moves: dict):
-    print('W - white, B - black, X - available move position')
+    print('○ - white, ● - black, x - available move position')
     print('Current board state:')
     row_text = '  A B C D E F G H'
     print(row_text)
@@ -18,13 +18,13 @@ def print_board(white_board: int, black_board: int, moves: dict):
         for j in range(8):
             position = i * 8 + j
             if moves.__contains__(position):
-                row += 'X '
+                row += 'x '
             elif nth_bit_set(white_board, position):
-                row += 'W '
+                row += '○ '
             elif nth_bit_set(black_board, position):
-                row += 'B '
+                row += '● '
             else:
-                row += '. '
+                row += '  '
         print(row)
     print()
 
@@ -48,6 +48,9 @@ def play_pvp():
         move = input('Input your move e. g. [A 1]\n>')
         pos = move.split(' ')
         position = (int(pos[1]) - 1) * 8 + (ord(pos[0]) - ord('A'))
+        if position not in board_state.available_moves:
+            print('Invalid move.\n')
+            continue
         board_state.make_move(position)
 
     print('Game over!')
@@ -58,8 +61,8 @@ def play_pvp():
 
 def play_ai_vs_ai():
     board_state = BoardState()
-    blackAI = OpponentAI(True, 4)
-    whiteAI = OpponentAI(False, 4)
+    blackAI = OpponentAI(True)
+    whiteAI = OpponentAI(False)
     black_turn = True
 
     print('Playing...')
@@ -94,8 +97,13 @@ def play_ai_vs_ai():
 
 def play_pve():
     board_state = BoardState()
-    opponent = OpponentAI(False, 4)
-    players_turn = True
+
+    if input('Do you want to play as the black player? (Y/N)\n') == 'Y':
+        opponent = OpponentAI(False)
+        players_turn = True
+    else:
+        opponent = OpponentAI(True)
+        players_turn = False
 
     while not board_state.game_over:
         print_board(board_state.white_board, board_state.black_board, board_state.available_moves)
@@ -110,6 +118,9 @@ def play_pve():
             move = input('Input your move e. g. [A 1]\n>>')
             pos = move.split(' ')
             position = (int(pos[1]) - 1) * 8 + (ord(pos[0]) - ord('A'))
+            if position not in board_state.available_moves:
+                print('Invalid move.\n')
+                continue
             board_state.make_move(position)
         else:
             start = time.time()

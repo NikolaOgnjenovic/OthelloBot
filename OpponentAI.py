@@ -9,6 +9,7 @@ def nth_bit_set(number: int, n: int) -> bool:
     return (number & (1 << n)) == 0
 
 
+# Used for storing values & positions of available moves for the bot
 class Node:
     def __init__(self, position: int):
         self.children = []
@@ -51,7 +52,7 @@ def piece_difference(player_board: int, opponent_board: int) -> (float, float, f
                 for k in range(8):
                     x = i + x_weights[k]
                     y = j + y_weights[k]
-                    if 0 <= x < 8 and 0 <= y < 8 and not (nth_bit_set(opponent_board, i * 8 + j) or nth_bit_set(player_board, i * 8 + j)):
+                    if 0 <= x < 8 and 0 <= y < 8 and not (nth_bit_set(opponent_board, x * 8 + y) or nth_bit_set(player_board, x * 8 + i)):
                         if nth_bit_set(opponent_board, i * 8 + j):
                             player_front_tiles += 1
                         else:
@@ -170,8 +171,8 @@ def corner_closeness(player_board: int, opponent_board: int) -> float:
 
 
 def mobility(board_state: BoardState, is_black: bool) -> float:
-    player_tiles = len(board_state.get_legal_moves(is_black))
-    opponent_tiles = len(board_state.get_legal_moves(is_black))
+    player_tiles = len(board_state.get_available_moves(is_black))
+    opponent_tiles = len(board_state.get_available_moves(is_black))
 
     if player_tiles > opponent_tiles:
         m = (100.0 * player_tiles) / (player_tiles + opponent_tiles)
@@ -183,27 +184,30 @@ def mobility(board_state: BoardState, is_black: bool) -> float:
     return m
 
 
-state_hash: dict = {} # Hash map of already calculated state branch values (transposition table)
+heuristic_hash: dict = {} # Hash map of already calculated table heuristic values
 
-def heuristic(board_state: BoardState, is_black: bool, heuristic_strength: int):
-    global state_hash
+# Calculates the numerical value of the current state of the game
+def heuristic(board_state: BoardState, is_black: bool) -> float:
+    # If the heuristic for the current board state has already been calculated return it instead of calculating it
+    global heuristic_hash
     board_hash = str(board_state.black_board) + ' ' + str(board_state.white_board)
-    if state_hash.__contains__(board_hash):
-        return state_hash.get(board_hash)
+    if heuristic_hash.__contains__(board_hash):
+        return heuristic_hash.get(board_hash)
 
+    # Call the heuristic functions with the black board as player_tiles and the white board as opponent_tiles
     if is_black:
         p, f, d = piece_difference(board_state.black_board, board_state.white_board)
         l = corner_closeness(board_state.black_board, board_state.white_board)
         c = corner_occupancy(board_state.black_board, board_state.white_board)
+    # Call the heuristic functions with the white board as player_tiles and the black board as opponent_tiles
     else:
         p, f, d = piece_difference(board_state.white_board, board_state.black_board)
         l = corner_closeness(board_state.white_board, board_state.black_board)
         c = corner_occupancy(board_state.white_board, board_state.black_board)
 
     m = mobility(board_state, is_black)
-    #print(f'p {p} c {c} l {l} m {m} f {f} d {d}')
     score = (10 * p) + (801.724 * c) + (382.026 * l) + (78.922 * m) + (74.396 * f) + (10.0 * d)
-    state_hash[board_hash] = score
+    heuristic_hash[board_hash] = score
     return score
 
 
@@ -211,64 +215,59 @@ class OpponentAI:
     board_state: BoardState
 
     is_black: bool
-    heuristic_strength: int
     max_depth: int
     end_time: float
 
-    def __init__(self, is_black: bool, heuristic_strength: int):
-        self.state_hash = {}
+    def __init__(self, is_black: bool):
+        self.heuristic_hash = {}
         self.is_black = is_black
+        self.max_depth = 20
 
-        self.heuristic_strength = heuristic_strength
-        if heuristic_strength == 4:
-            self.max_depth = 20
-        elif heuristic_strength == 3:
-            self.max_depth = 10
-        elif heuristic_strength == 2:
-            self.max_depth = 5
-        else:
-            self.max_depth = 4
-
+    # Returns the position of the move that the bot will play or None if no moves are available
     def get_next_move(self, board_state: BoardState) -> int | None:
         root = Node(-1)
+
+        if len(board_state.available_moves) == 0:
+            return None
 
         for move in board_state.available_moves:
             root.add_child(Node(move))
 
+        # Start looking for moves from the depth 4 upwards for 3 seconds
         depth = 4
         end_time = time.time() + 2.9
         self.end_time = end_time
-        option = None
+        move = None
         while depth <= self.max_depth and time.time() < end_time:
-            #print('Depth: ', depth, ' Time - end: ' + str(time.time() - end_time))
-
             # Minimax each child
             for child in root.children:
                 child.value = self.minimax(depth, True, -inf, inf, board_state, child.position)
 
+            # If no moves are calculated, return None
             if len(root.children) < 1:
                 return None
 
-            option = root.children[0]
+            # Pick a move with the best heuristic value
+            move = root.children[0]
             for i in range(1, len(root.children)):
-                if root.children[i].value > option.value:
-                    option = root.children[i]
+                if root.children[i].value > move.value:
+                    move = root.children[i]
 
             depth += 1
 
         print('Max depth reached:', depth - 1)
-        if option is not None:
-            return option.position
+        if move is not None:
+            return move.position
         else:
             return None
 
     def minimax(self, depth: int, is_maximizer: bool, alpha: float, beta: float, state: BoardState, move_position: int) -> float:
-        # TODO: potez unazad da nemam deepcopy
+        # Make a copy of the board state and make the given move on the copied board
         board_state = copy.deepcopy(state)
         board_state.make_move(move_position)
 
         if time.time() > self.end_time or depth < 1 or board_state.game_over:
-            return heuristic(board_state, self.is_black, self.heuristic_strength)
+            return heuristic(board_state, self.is_black)
 
         if is_maximizer:
             for move in board_state.available_moves:
